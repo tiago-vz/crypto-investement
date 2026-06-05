@@ -475,61 +475,140 @@
             updateTimestamp();
         };
 
-        // EVENT LISTENERS 
-        document.getElementById('searchInput').addEventListener('input', async (e) => {
-            clearTimeout(searchTimeout);
-            const query = e.target.value;
+        // EVENT LISTENERS - With validation and error handling
+        try {
+            const searchInput = document.getElementById('searchInput');
+            const searchResults = document.getElementById('searchResults');
+            const refreshBtn = document.getElementById('refreshBtn');
+            const loadHistoryBtn = document.getElementById('loadHistoryBtn');
+            const cryptoSelect = document.getElementById('cryptoSelect');
+            const fromDate = document.getElementById('fromDate');
+            const toDate = document.getElementById('toDate');
+            const historyError = document.getElementById('historyError');
 
-            if (!query.trim()) {
-                document.getElementById('searchResults').classList.add('hidden');
-                return;
+            // Validate CSRF token exists
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+            if (!csrfToken) {
+                console.warn('[CSRF] Token not found in meta tag');
             }
 
-            searchTimeout = setTimeout(async () => {
-                const results = await searchCryptos(query);
-                renderSearchResults(results);
-            }, 400);
-        });
+            // Search input - listener
+            if (searchInput && searchResults) {
+                searchInput.addEventListener('input', async (e) => {
+                    try {
+                        clearTimeout(searchTimeout);
+                        const query = e.target.value;
 
-        document.getElementById('refreshBtn').addEventListener('click', refreshPrices);
+                        if (!query.trim()) {
+                            searchResults.classList.add('hidden');
+                            return;
+                        }
 
-        document.getElementById('loadHistoryBtn').addEventListener('click', () => {
-            const cryptoId = document.getElementById('cryptoSelect').value;
-            const fromDate = document.getElementById('fromDate').value;
-            const toDate = document.getElementById('toDate').value;
+                        searchTimeout = setTimeout(async () => {
+                            const results = await searchCryptos(query);
+                            console.log('Search results:', results);
+                            console.log('Results is array:', Array.isArray(results));
+                            console.log('Results length:', results?.length);
+                            renderSearchResults(results);
+                        }, 400);
+                    } catch (err) {
+                        console.error('[searchInput:input]', err);
+                    }
+                });
 
-            if (!cryptoId || !fromDate || !toDate) {
-                showError(document.getElementById('historyError'), 'Por favor selecciona criptomoneda y fechas');
-                return;
+                // Close dropdown on Escape key
+                searchInput.addEventListener('keydown', (e) => {
+                    try {
+                        if (e.key === 'Escape') {
+                            searchResults.classList.add('hidden');
+                            searchInput.blur();
+                        }
+                    } catch (err) {
+                        console.error('[searchInput:keydown]', err);
+                    }
+                });
+
+                // Close dropdown when input loses focus
+                searchInput.addEventListener('blur', () => {
+                    try {
+                        setTimeout(() => {
+                            searchResults.classList.add('hidden');
+                        }, 200);
+                    } catch (err) {
+                        console.error('[searchInput:blur]', err);
+                    }
+                });
             }
 
-            loadHistory(cryptoId, fromDate, toDate);
-        });
-
-        // Set default dates (last 7 days)
-        window.addEventListener('load', () => {
-            const today = new Date();
-            const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-
-            document.getElementById('toDate').value = today.toISOString().split('T')[0];
-            document.getElementById('fromDate').value = sevenDaysAgo.toISOString().split('T')[0];
-
-            loadDashboard();
-        });
-
-        // Auto-refresh every 60 seconds
-        autoRefreshInterval = setInterval(refreshPrices, 60000);
-
-        // Close search dropdown when clicking outside
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('#searchInput') && !e.target.closest('#searchResults')) {
-                document.getElementById('searchResults').classList.add('hidden');
+            // Refresh button listener
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', refreshPrices);
             }
-        });
 
-        //GLOBAL FUNCTION FOR ONCLICK 
-        window.deleteCrypto = deleteCrypto;
-        window.addCrypto = addCrypto;
+            // Load history button listener
+            if (loadHistoryBtn && cryptoSelect && fromDate && toDate && historyError) {
+                loadHistoryBtn.addEventListener('click', () => {
+                    try {
+                        const cryptoIdValue = cryptoSelect.value;
+                        const fromDateValue = fromDate.value;
+                        const toDateValue = toDate.value;
+
+                        if (!cryptoIdValue || !fromDateValue || !toDateValue) {
+                            showError(historyError, 'Por favor selecciona criptomoneda y fechas');
+                            return;
+                        }
+
+                        loadHistory(cryptoIdValue, fromDateValue, toDateValue);
+                    } catch (err) {
+                        console.error('[loadHistoryBtn:click]', err);
+                    }
+                });
+            }
+
+            // Set default dates (last 7 days) and load dashboard
+            window.addEventListener('load', () => {
+                try {
+                    if (fromDate && toDate) {
+                        const today = new Date();
+                        const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+                        toDate.value = today.toISOString().split('T')[0];
+                        fromDate.value = sevenDaysAgo.toISOString().split('T')[0];
+                    }
+
+                    loadDashboard();
+                } catch (err) {
+                    console.error('[window:load]', err);
+                }
+            });
+
+            // Auto-refresh every 60 seconds
+            autoRefreshInterval = setInterval(() => {
+                try {
+                    refreshPrices();
+                } catch (err) {
+                    console.error('[autoRefresh]', err);
+                }
+            }, 60000);
+
+            // Close search dropdown when clicking outside
+            document.addEventListener('click', (e) => {
+                try {
+                    if (searchResults && !e.target.closest('#searchInput') && !e.target.closest('#searchResults')) {
+                        searchResults.classList.add('hidden');
+                    }
+                } catch (err) {
+                    console.error('[document:click]', err);
+                }
+            });
+
+            // Register global functions for onclick handlers
+            window.deleteCrypto = deleteCrypto;
+            window.addCrypto = addCrypto;
+
+        } catch (err) {
+            console.error('[EVENT_LISTENERS_INIT]', err);
+        }
     </script>
 </body>
 </html>
@@ -677,7 +756,7 @@
                             <path d="M67.41 125.402L44.5515 125.401L15.5625 75.1953L101.364 75.1985L233.886 304.712L170.942 304.71L67.41 125.402Z" stroke="#FF750F" stroke-width="1"/>
                         </g>
                     </svg>
-                    <div class="absolute inset-0 rounded-t-lg lg:rounded-t-none lg:rounded-r-lg shadow-[inset_0px_0px_0px_1px_rgba(26,26,0,0.16)] dark:shadow-[inset_0px_0px_0px_1px_#fffaed2d]"></div>
+                    <div class="absolute inset-0 pointer-events-none rounded-t-lg lg:rounded-t-none lg:rounded-r-lg shadow-[inset_0px_0px_0px_1px_rgba(26,26,0,0.16)] dark:shadow-[inset_0px_0px_0px_1px_#fffaed2d]"></div>
                 </div>
             </main>
         </div>
