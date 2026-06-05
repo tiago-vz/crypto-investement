@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Crypto;
 use App\Models\CryptoPrice;
+use App\Http\Resources\CryptoResource;
 use App\Services\CoinMarketCapService;
 use Illuminate\Http\Request;
 
@@ -23,15 +24,13 @@ class CryptoPriceController extends Controller
         $symbols = $cryptos->pluck('symbol')->toArray();
         $quotes  = $this->cmc->getQuotes($symbols);
 
-        $result = [];
-
         foreach ($cryptos as $crypto) {
             $quoteData = $quotes[$crypto->symbol][0] ?? null;
             if (!$quoteData) continue;
 
             $usd = $quoteData['quote']['USD'];
 
-            $price = CryptoPrice::create([
+            CryptoPrice::create([
                 'crypto_id'          => $crypto->id,
                 'price'              => $usd['price'],
                 'percent_change_24h' => $usd['percent_change_24h'],
@@ -40,14 +39,10 @@ class CryptoPriceController extends Controller
                 'market_cap'         => $usd['market_cap'],
                 'recorded_at'        => now(),
             ]);
-
-            $result[] = [
-                'crypto'  => $crypto,
-                'price'   => $price,
-            ];
         }
 
-        return response()->json($result);
+        $updatedCryptos = Crypto::with('latestPrice')->get();
+        return CryptoResource::collection($updatedCryptos);
     }
 
     // Historial de precios por rango de fechas

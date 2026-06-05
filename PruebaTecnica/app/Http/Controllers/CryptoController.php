@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Crypto;
+use App\Http\Resources\CryptoResource;
 use App\Services\CoinMarketCapService;
 use Illuminate\Http\Request;
 
@@ -14,7 +15,7 @@ class CryptoController extends Controller
     public function index()
     {
         $cryptos = Crypto::with('latestPrice')->get();
-        return response()->json($cryptos);
+        return CryptoResource::collection($cryptos);
     }
 
     // Buscar criptos en la API
@@ -51,7 +52,7 @@ class CryptoController extends Controller
             }
         }
 
-        return response()->json($crypto, 201);
+        return new CryptoResource($crypto);
     }
 
     // Eliminar cripto del seguimiento
